@@ -6,10 +6,10 @@ import numpy as np
 from typing import List
 import time
 
-from pose_estimation import process_video, PoseEstimator
-from models import LiftData, FrameData, JointAngles
-from rule_checker import RuleChecker, extract_joint_angles
-from utils import overlay_skeleton_and_annotations, get_key_frames, create_report
+from .pose_estimation import process_video, PoseEstimator
+from .models import LiftData, FrameData, JointAngles
+from .rule_checker import RuleChecker, extract_joint_angles
+from .utils import overlay_skeleton_and_annotations, get_key_frames, create_report
 
 def main():
     st.set_page_config(page_title="AI Powerlifting Judge", layout="wide")
