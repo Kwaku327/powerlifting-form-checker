@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Dict, Tuple
-from .types import LiftData, LiftResult, FrameData
+from .models import LiftData, LiftResult, FrameData
 
 def calculate_angle(a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]) -> float:
     """Return angle ABC (in degrees) between points a, b, c."""
