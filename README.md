@@ -1,24 +1,26 @@
-# AI-Powered Powerlifting App
+# AI Powerlifting Form Checker
 
-An AI-powered application that analyzes powerlifting attempts using computer vision to assess compliance with IPF (International Powerlifting Federation) technical rules. The app uses MediaPipe for pose estimation and provides real-time feedback on lift execution.
+An AI-powered application that analyzes powerlifting videos to assess compliance with IPF (International Powerlifting Federation) rules. The application uses computer vision to analyze squat, bench press, and deadlift videos, providing feedback on form and rule compliance.
 
 ## Features
 
-- **Lift Analysis**: Supports squat, bench press, and deadlift analysis
-- **Rule Checking**: Automated checking of key IPF technical rules
-- **Visual Feedback**: Displays pose estimation and key frames
-- **Detailed Reports**: Joint angles and rule infractions clearly explained
-- **User-Friendly Interface**: Built with Streamlit for easy interaction
+- Video upload and analysis
+- Real-time pose estimation using OpenCV
+- Automated rule checking for:
+  - Squat depth and bar position
+  - Bench press pause and bar path
+  - Deadlift lockout and bar path
+- User-friendly web interface built with Streamlit
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/powerlifting_app.git
-   cd powerlifting_app
+   git clone https://github.com/Kwaku327/powerlifting-form-checker.git
+   cd powerlifting-form-checker
    ```
 
-2. Create a virtual environment (optional but recommended):
+2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -34,16 +36,36 @@ An AI-powered application that analyzes powerlifting attempts using computer vis
 1. Start the Streamlit app:
    ```bash
    cd src
-   streamlit run app.py
+   python -m streamlit run app.py
    ```
 
-2. Open your web browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
+2. Open your web browser and navigate to the provided local URL
+3. Upload a powerlifting video
+4. Select the lift type (squat, bench press, or deadlift)
+5. Click "Analyze" to receive feedback on form and rule compliance
 
-3. Use the app:
-   - Select your lift type from the sidebar
-   - Upload a video of your lift
-   - Wait for the analysis
-   - Review the results and feedback
+## Project Structure
+
+```
+powerlifting_app/
+├── src/
+│   ├── app.py              # Main Streamlit application
+│   ├── pose_estimation.py  # Pose estimation logic
+│   ├── rule_checker.py     # IPF rule checking implementation
+│   ├── types.py           # Type definitions
+│   └── utils.py           # Utility functions
+├── data/                  # Sample videos and test data
+├── models/               # Trained models and weights
+└── requirements.txt      # Project dependencies
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Best Practices for Video Recording
 
@@ -80,14 +102,6 @@ For optimal results:
 - Accuracy depends on video quality and camera angle
 - Some technical rules (like foot movement) may be hard to detect
 - For competition purposes, always refer to official IPF judges
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
