@@ -1,2 +1,2 @@
 #!/bin/bash
-streamlit run -m src.app 
+python -m streamlit run src/app.py

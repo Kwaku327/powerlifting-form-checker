@@ -47,15 +47,13 @@ An AI-powered application that analyzes powerlifting videos to assess compliance
 ## Project Structure
 
 ```
-powerlifting_app/
+powerlifting-form-checker/
 ├── src/
 │   ├── app.py              # Main Streamlit application
 │   ├── pose_estimation.py  # Pose estimation logic
 │   ├── rule_checker.py     # IPF rule checking implementation
-│   ├── types.py           # Type definitions
+│   ├── models.py          # Data models
 │   └── utils.py           # Utility functions
-├── data/                  # Sample videos and test data
-├── models/               # Trained models and weights
 └── requirements.txt      # Project dependencies
 ```
 
@@ -82,7 +80,7 @@ For optimal results:
 
 ### Components
 
-- `src/types.py`: Data classes for lifts and analysis results
+- `src/models.py`: Data classes for lifts and analysis results
 - `src/pose_estimation.py`: MediaPipe-based pose detection
 - `src/rule_checker.py`: IPF rule compliance logic
 - `src/utils.py`: Visualization and helper functions
