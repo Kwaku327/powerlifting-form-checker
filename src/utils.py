@@ -42,6 +42,9 @@ def get_key_frames(video_path: str, frame_indices: Dict[str, int]) -> Dict[str, 
 
 def create_report(lift_result, key_frames: Dict[str, np.ndarray], output_path: str) -> None:
     """Create a visual report with key frames and annotations."""
+    if not key_frames:
+        raise ValueError("No key frames provided to create_report")
+
     # Create a white background
     height, width = key_frames[list(key_frames.keys())[0]].shape[:2]
     report = np.ones((height * 2, width * 2, 3), dtype=np.uint8) * 255
