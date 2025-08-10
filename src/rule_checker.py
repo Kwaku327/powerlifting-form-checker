@@ -74,14 +74,17 @@ class RuleChecker:
         angles_seq = [frame.angles for frame in lift_data.frames]
 
         # Identify lowest (deepest) point: minimal knee_angle
-        knee_angles = [f.angles.knee_angle for f in lift_data.frames if f.angles.knee_angle is not None]
-        if not knee_angles:
+        knee_angle_tuples = [
+            (i, f.angles.knee_angle)
+            for i, f in enumerate(lift_data.frames)
+            if f.angles.knee_angle is not None
+        ]
+        if not knee_angle_tuples:
             result.is_good_lift = False
             result.infractions.append("Unable to detect knee landmarks.")
             return result
 
-        min_knee_angle = min(knee_angles)
-        min_frame_idx = knee_angles.index(min_knee_angle)
+        min_frame_idx, min_knee_angle = min(knee_angle_tuples, key=lambda x: x[1])
         # IPF requirement: Top of hip joint below top of knee => knee_angle ~ < 90 degrees
         if min_knee_angle > 95:  # small buffer above 90
             result.is_good_lift = False
@@ -100,6 +103,8 @@ class RuleChecker:
         for i in range(min_frame_idx + 1, len(lift_data.frames) - 1):
             a1 = lift_data.frames[i].angles.knee_angle
             a2 = lift_data.frames[i + 1].angles.knee_angle
+            if a1 is None or a2 is None:
+                continue
             if a2 < a1 - 2:  # allow small noise
                 dipping_detected = True
                 break
