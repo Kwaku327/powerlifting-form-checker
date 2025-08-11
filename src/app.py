@@ -109,11 +109,23 @@ def main():
                                 "Hip": f"{frame.angles.hip_angle:.1f}°" if frame.angles.hip_angle else "N/A",
                                 "Knee": f"{frame.angles.knee_angle:.1f}°" if frame.angles.knee_angle else "N/A",
                                 "Shoulder": f"{frame.angles.shoulder_angle:.1f}°" if frame.angles.shoulder_angle else "N/A",
-                                "Elbow": f"{frame.angles.elbow_angle:.1f}°" if frame.angles.elbow_angle else "N/A"
+                                "Elbow": f"{frame.angles.elbow_angle:.1f}°" if frame.angles.elbow_angle else "N/A",
                             }
                             for joint, angle in angles.items():
                                 st.text(f"{joint}: {angle}")
                             st.write("---")
+
+                    # Allow downloading a summary report
+                    report_path = os.path.join(tempfile.gettempdir(), "lift_report.png")
+                    create_report(result, key_frames, report_path)
+                    with open(report_path, "rb") as report_file:
+                        st.download_button(
+                            label="Download Analysis Report",
+                            data=report_file,
+                            file_name="lift_report.png",
+                            mime="image/png",
+                        )
+                    os.remove(report_path)
 
             except Exception as e:
                 st.error(f"Error processing video: {str(e)}")
