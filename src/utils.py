@@ -1,8 +1,10 @@
 
+import json
 import cv2
 import numpy as np
 from typing import List, Dict, Tuple
 from .pose_estimation import PoseEstimator
+from .models import LiftResult
 
 def overlay_skeleton_and_annotations(frame: np.ndarray, landmarks, annotation: str = "", position: Tuple[int, int] = (30, 30)) -> np.ndarray:
     """Draw pose landmarks and add text annotation on the frame."""
@@ -92,6 +94,24 @@ def create_report(lift_result, key_frames: Dict[str, np.ndarray], output_path: s
             2
         )
         y_pos -= 30
-    
+
     # Save report
-    cv2.imwrite(output_path, report) 
+    cv2.imwrite(output_path, report)
+
+
+def smooth_path(values: List[float], window: int = 5) -> List[float]:
+    """Apply a centered moving average filter to the list of values."""
+    if not values:
+        return values
+    if window < 2:
+        return values
+    pad = window // 2
+    padded = [values[0]] * pad + values + [values[-1]] * pad
+    smoothed = [float(np.mean(padded[i:i + window])) for i in range(len(values))]
+    return smoothed
+
+
+def export_result_json(lift_result: LiftResult, path: str) -> None:
+    """Export LiftResult information to a JSON file."""
+    with open(path, "w") as f:
+        json.dump(lift_result.dict(), f, indent=2)

@@ -28,6 +28,15 @@ def main():
         help="Choose the type of lift you want to analyze"
     ).lower().replace(" ", "")
 
+    pause_sensitivity = st.sidebar.slider(
+        "Bench Pause Sensitivity",
+        0.005,
+        0.05,
+        0.01,
+        0.005,
+        help="Tolerance for bar motion during bench pause"
+    )
+
     # File uploader
     uploaded_file = st.file_uploader(
         "Upload your lift video (MP4, AVI, MOV)",
@@ -45,23 +54,41 @@ def main():
             try:
                 # Process video
                 progress_bar = st.progress(0)
-                landmarks_sequence = process_video(video_path, desired_fps=15)
+                raw_frames = process_video(video_path, desired_fps=15)
                 progress_bar.progress(33)
 
                 # Build LiftData
-                frames = []
-                for lm in landmarks_sequence:
+                frames: List[FrameData] = []
+                for item in raw_frames:
+                    lm = item["landmarks"]
+                    barbell_y = item.get("barbell_y")
                     angles_dict = extract_joint_angles(lm)
                     frame_data = FrameData(
                         landmarks=lm,
-                        angles=JointAngles(**angles_dict)
+                        angles=JointAngles(**angles_dict),
+                        barbell_y=barbell_y,
                     )
                     frames.append(frame_data)
-                lift_data = LiftData(frames=frames)
+
+                command_markers = {}
+                total_frames = len(frames)
+                if lift_type == "squat":
+                    command_markers["squat"] = st.number_input("Squat command frame", 0, total_frames - 1, 0)
+                    command_markers["rack"] = st.number_input("Rack command frame", 0, total_frames - 1, total_frames - 1)
+                elif lift_type == "benchpress":
+                    command_markers["start"] = st.number_input("Start command frame", 0, total_frames - 1, 0)
+                    command_markers["press"] = st.number_input("Press command frame", 0, total_frames - 1, total_frames // 2)
+                    command_markers["rack"] = st.number_input("Rack command frame", 0, total_frames - 1, total_frames - 1)
+                elif lift_type == "deadlift":
+                    command_markers["down"] = st.number_input("Down command frame", 0, total_frames - 1, total_frames - 1)
+                command_markers["pause_tolerance"] = pause_sensitivity
+
+                lift_data = LiftData(frames=frames, commands=command_markers)
                 progress_bar.progress(66)
 
                 # Assess lift
-                result = RuleChecker.assess_lift(lift_type, lift_data)
+                lift_key = "bench" if lift_type == "benchpress" else lift_type
+                result = RuleChecker.assess_lift(lift_key, lift_data)
                 progress_bar.progress(100)
                 time.sleep(0.5)  # Let user see completion
                 progress_bar.empty()
@@ -76,7 +103,7 @@ def main():
                     
                     for name, frame in key_frames.items():
                         frame_idx = result.frame_indices[name]
-                        landmarks = landmarks_sequence[frame_idx] if frame_idx < len(landmarks_sequence) else None
+                        landmarks = raw_frames[frame_idx]["landmarks"] if frame_idx < len(raw_frames) else None
                         annotated = overlay_skeleton_and_annotations(
                             frame,
                             landmarks,
@@ -98,6 +125,10 @@ def main():
                         st.subheader("Infractions:")
                         for inf in result.infractions:
                             st.warning(f"- {inf}")
+                    if result.notes:
+                        st.subheader("Notes:")
+                        for note in result.notes:
+                            st.info(f"- {note}")
 
                     # Display joint angles
                     st.subheader("Joint Angles at Key Points")

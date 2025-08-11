@@ -1,6 +1,6 @@
 import numpy as np
-from typing import List, Dict, Tuple
-from .models import LiftData, LiftResult, FrameData
+from typing import Dict, Tuple
+from .models import LiftData, LiftResult
 
 def calculate_angle(a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]) -> float:
     """Return angle ABC (in degrees) between points a, b, c."""
@@ -71,7 +71,6 @@ class RuleChecker:
         4. Check for double-bounce: ensure no substantial dip after first ascent.
         """
         result = LiftResult(lift_type="squat", is_good_lift=True)
-        angles_seq = [frame.angles for frame in lift_data.frames]
 
         # Identify lowest (deepest) point: minimal knee_angle
         knee_angles = [f.angles.knee_angle for f in lift_data.frames if f.angles.knee_angle is not None]
@@ -107,10 +106,57 @@ class RuleChecker:
             result.is_good_lift = False
             result.infractions.append("Double-bounce detected during ascent.")
 
+        # Additional heuristics
+        start_landmarks = lift_data.frames[0].landmarks
+        bottom_landmarks = lift_data.frames[min_frame_idx].landmarks
+        end_landmarks = lift_data.frames[-1].landmarks
+
+        # Foot movement (ankle displacement between start and end)
+        for side in ["left", "right"]:
+            ankle_key = f"{side}_ankle"
+            if ankle_key in start_landmarks and ankle_key in end_landmarks:
+                start_pt = np.array(start_landmarks[ankle_key][:2])
+                end_pt = np.array(end_landmarks[ankle_key][:2])
+                if np.linalg.norm(end_pt - start_pt) > 0.05:
+                    result.notes.append(f"Noticeable {side} foot movement detected.")
+
+        # Knee valgus (compare knee-to-ankle width ratio start vs bottom)
+        required = ['left_knee', 'right_knee', 'left_ankle', 'right_ankle']
+        if all(k in start_landmarks for k in required) and all(k in bottom_landmarks for k in required):
+            start_knee = np.linalg.norm(np.array(start_landmarks['left_knee'][:2]) - np.array(start_landmarks['right_knee'][:2]))
+            start_ankle = np.linalg.norm(np.array(start_landmarks['left_ankle'][:2]) - np.array(start_landmarks['right_ankle'][:2]))
+            bottom_knee = np.linalg.norm(np.array(bottom_landmarks['left_knee'][:2]) - np.array(bottom_landmarks['right_knee'][:2]))
+            bottom_ankle = np.linalg.norm(np.array(bottom_landmarks['left_ankle'][:2]) - np.array(bottom_landmarks['right_ankle'][:2]))
+            if start_ankle > 0 and bottom_ankle > 0:
+                start_ratio = start_knee / start_ankle
+                bottom_ratio = bottom_knee / bottom_ankle
+                if bottom_ratio < start_ratio * 0.8:
+                    result.notes.append("Knee valgus detected (knees collapsing inward).")
+
+        # Torso angle change
+        def torso_angle(lms):
+            if 'right_shoulder' in lms and 'right_hip' in lms and 'right_knee' in lms:
+                shoulder = np.array(lms['right_shoulder'][:2])
+                hip = np.array(lms['right_hip'][:2])
+                knee = np.array(lms['right_knee'][:2])
+                v1 = shoulder - hip
+                v2 = knee - hip
+                angle = np.degrees(np.arccos(
+                    np.clip(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6), -1.0, 1.0)
+                ))
+                return angle
+            return None
+
+        start_torso = torso_angle(start_landmarks)
+        bottom_torso = torso_angle(bottom_landmarks)
+        if start_torso is not None and bottom_torso is not None:
+            if abs(bottom_torso - start_torso) > 20:
+                result.notes.append("Significant torso angle change detected.")
+
         return result
 
     @staticmethod
-    def check_bench(lift_data: LiftData) -> LiftResult:
+    def check_bench(lift_data: LiftData, pause_tolerance: float = 0.01) -> LiftResult:
         """
         Logic for bench press:
         1. Detect bar pause on chest: approximate by minimal vertical wrist movement.
@@ -142,7 +188,7 @@ class RuleChecker:
         # Check pause at chest
         pause_frames = lift_data.frames[min_wrist_idx:min_wrist_idx + 5]
         pause_wrist_ys = [f.landmarks.get('right_wrist', (0, 0, 0))[1] for f in pause_frames]
-        if max(pause_wrist_ys) - min(pause_wrist_ys) > 0.01:  # threshold on normalized coords
+        if max(pause_wrist_ys) - min(pause_wrist_ys) > pause_tolerance:
             result.is_good_lift = False
             result.infractions.append("No clear bar pause on chest.")
 
@@ -217,7 +263,8 @@ class RuleChecker:
         if lift_type.lower() == 'squat':
             return RuleChecker.check_squat(lift_data)
         elif lift_type.lower() == 'bench':
-            return RuleChecker.check_bench(lift_data)
+            tol = lift_data.commands.get('pause_tolerance', 0.01)
+            return RuleChecker.check_bench(lift_data, pause_tolerance=tol)
         elif lift_type.lower() == 'deadlift':
             return RuleChecker.check_deadlift(lift_data)
         else:
