@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import urllib.request
 import os
 
@@ -99,6 +99,42 @@ class PoseEstimator:
         return landmarks
 
     @staticmethod
+    def detect_barbell_y(frame: np.ndarray, landmarks: Dict[str, Tuple[float, float, float]]) -> Optional[float]:
+        """Detect horizontal barbell line near the wrists using Canny + Hough."""
+        if 'left_wrist' not in landmarks or 'right_wrist' not in landmarks:
+            return None
+
+        h, w = frame.shape[:2]
+        # Determine ROI around wrists
+        lx, ly, _ = landmarks['left_wrist']
+        rx, ry, _ = landmarks['right_wrist']
+        cx = int(((lx + rx) / 2) * w)
+        cy = int(((ly + ry) / 2) * h)
+        roi_h = int(0.2 * h)
+        roi_w = int(0.6 * w)
+        y1 = max(cy - roi_h // 2, 0)
+        y2 = min(cy + roi_h // 2, h)
+        x1 = max(cx - roi_w // 2, 0)
+        x2 = min(cx + roi_w // 2, w)
+        roi = frame[y1:y2, x1:x2]
+
+        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=50, minLineLength=60, maxLineGap=10)
+        if lines is None:
+            return None
+
+        # Filter near-horizontal lines and take average y
+        ys = []
+        for x1l, y1l, x2l, y2l in lines[:, 0]:
+            if abs(y2l - y1l) <= 5 and abs(x2l - x1l) > 30:
+                ys.append((y1l + y2l) / 2)
+        if not ys:
+            return None
+        barbell_y = (y1 + int(np.mean(ys))) / h
+        return barbell_y
+
+    @staticmethod
     def draw_landmarks(frame: np.ndarray, landmarks: Dict[str, Tuple[float, float, float]]) -> np.ndarray:
         """Draw pose landmarks on frame."""
         if not landmarks:
@@ -134,16 +170,14 @@ class PoseEstimator:
         
         return img
 
-def process_video(video_path: str, desired_fps: int = 30) -> List[Dict[str, Tuple[float, float, float]]]:
-    """
-    Read video file, extract frames at desired_fps, and return a list of landmark dictionaries per frame.
-    """
+def process_video(video_path: str, desired_fps: int = 30) -> List[Dict[str, Optional[float]]]:
+    """Return sequence of landmarks and barbell positions for each processed frame."""
     cap = cv2.VideoCapture(video_path)
     original_fps = cap.get(cv2.CAP_PROP_FPS) or desired_fps
     frame_interval = int(round(original_fps / desired_fps))
 
     estimator = PoseEstimator()
-    landmarks_sequence = []
+    frame_data = []
     frame_count = 0
 
     while cap.isOpened():
@@ -152,8 +186,9 @@ def process_video(video_path: str, desired_fps: int = 30) -> List[Dict[str, Tupl
             break
         if frame_count % frame_interval == 0:
             landmarks = estimator.extract_landmarks(frame)
-            landmarks_sequence.append(landmarks)
+            barbell_y = PoseEstimator.detect_barbell_y(frame, landmarks)
+            frame_data.append({"landmarks": landmarks, "barbell_y": barbell_y})
         frame_count += 1
 
     cap.release()
-    return landmarks_sequence 
+    return frame_data
